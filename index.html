@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFR : REQUIEM - TEST BUILD</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+        :root {
+            --bg-os: #02040a;
+            --bg-window: #0a0e17;
+            --bg-panel: #111827;
+            --bg-taskbar: #000;
+            
+            --border-dim: #1f2937;
+            --border-active: #2563eb;
+            
+            --text-main: #e2e8f0;
+            --text-muted: #64748b;
+            --text-kr: 'Noto Sans KR', sans-serif;
+            
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-purple: #a855f7;
+            
+            --font-ui: 'Chakra Petch', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        input, textarea { user-select: text; }
+
+        body {
+            background-color: var(--bg-os); color: var(--text-main);
+            font-family: var(--font-ui); height: 100vh; overflow: hidden; position: relative;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-os); }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-blue); }
+
+        /* --- OS Background --- */
+        .desktop-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #0a0f1c 0%, #000 100%);
+            display: flex; justify-content: center; align-items: center; z-index: 0;
+        }
+        .desktop-bg img { width: 400px; opacity: 0.05; filter: grayscale(100%); pointer-events: none;}
+        .scanlines {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%);
+            background-size: 100% 4px; pointer-events: none; z-index: 9000;
+        }
+
+        /* --- 프롤로그 화면 (Prologue & Email) --- */
+        #prologue-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 100000; display: flex; justify-content: center; align-items: center;
+            flex-direction: column; font-family: var(--font-mono); color: var(--accent-green);
+        }
+        #boot-sequence { text-align: center; }
+        #boot-sequence img { width: 150px; filter: grayscale(100%) sepia(100%) hue-rotate(80deg); margin-bottom: 20px; animation: pulse 2s infinite; }
+        #email-client {
+            display: none; width: 600px; background: #0a0e17; border: 1px solid var(--border-dim);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.2); flex-direction: column;
+        }
+        .email-header { background: #111827; padding: 15px; border-bottom: 1px solid var(--border-dim); }
+        .email-header p { margin-bottom: 5px; font-size: 0.85rem; color: var(--text-muted); }
+        .email-header h2 { font-size: 1.1rem; color: var(--accent-red); margin-top: 10px; font-family: var(--text-kr); }
+        .email-body { padding: 20px; font-family: var(--text-kr); font-size: 0.95rem; line-height: 1.6; color: #cbd5e1; }
+        .btn-accept {
+            background: var(--accent-blue); color: #fff; border: none; padding: 15px; font-family: var(--text-kr);
+            font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; margin: 20px; text-transform: uppercase;
+        }
+        .btn-accept:hover { background: #2563eb; box-shadow: 0 0 15px var(--accent-blue); }
+
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        /* --- 고정형 인트라넷 위젯 (우측 하단) --- */
+        .intranet-widget {
+            position: absolute; right: 15px; bottom: 60px; width: 350px; height: 350px;
+            background: rgba(10, 14, 23, 0.85); border: 1px solid var(--border-dim); border-radius: 4px;
+            z-index: 50; display: flex; flex-direction: column; backdrop-filter: blur(5px);
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+        }
+        .intranet-header {
+            padding: 8px 12px; background: rgba(0,0,0,0.8); border-bottom: 1px solid var(--border-dim);
+            font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-green); font-weight: bold;
+        }
+        .chat-container { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .chat-msg { background: rgba(17, 24, 39, 0.6); border-left: 2px solid var(--text-muted); padding: 8px; font-size: 0.8rem;}
+        .chat-msg.crit { border-left-color: var(--accent-red); background: rgba(239,68,68,0.05); }
+        .chat-msg.pos { border-left-color: var(--accent-green); }
+        .chat-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .chat-meta .author { color: var(--accent-blue); font-weight: bold;}
+        .chat-text { font-family: var(--text-kr); color: #cbd5e1; line-height: 1.4; }
+
+        /* --- 작업 표시줄 --- */
+        .taskbar {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 44px;
+            background: rgba(0,0,0,0.95); border-top: 1px solid var(--border-dim);
+            display: flex; justify-content: space-between; align-items: center; padding: 0 10px; z-index: 9999;
+        }
+        .taskbar-left { display: flex; align-items: center; gap: 10px; }
+        .start-btn { 
+            background: transparent; color: var(--text-main); border: 1px solid transparent;
+            padding: 5px 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 1.1rem;
+        }
+        .start-btn:hover { background: #1f2937; border-color: #374151; }
+        
+        .taskbar-right { display: flex; align-items: center; height: 100%; }
+        .tray-item { 
+            padding: 0 15px; height: 100%; display: flex; align-items: center; cursor: pointer;
+            font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); border-left: 1px solid var(--border-dim); transition: 0.2s;
+        }
+        .tray-item:hover { background: #111827; color: #fff; }
+        .tray-item.btn-turn { color: #000; background: var(--accent-green); font-weight: bold; }
+        .tray-item.btn-turn:hover { background: #059669; }
+        .tray-item.btn-turn.disabled { background: #1f2937; color: #4b5563; cursor: not-allowed; }
+        
+        .notif-btn { position: relative; color: var(--accent-blue); font-weight: bold; }
+        .badge { 
+            position: absolute; top: 6px; right: 8px; background: var(--accent-red); color: white;
+            font-size: 0.6rem; padding: 2px 5px; border-radius: 10px; display: none;
+        }
+
+        /* --- 바탕화면 아이콘 --- */
+        .desktop {
+            position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 44px);
+            z-index: 10; padding: 15px; display: flex; flex-direction: column; gap: 15px; align-items: flex-start;
+        }
+        .icon { width: 90px; padding: 10px 5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; border: 1px solid transparent; transition: 0.1s; }
+        .icon:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+        .icon-img { width: 40px; height: 40px; fill: var(--text-muted); margin-bottom: 8px; filter: drop-shadow(0 2px 2px #000); }
+        .icon-text { font-size: 0.75rem; color: var(--text-main); text-align: center; font-family: var(--font-mono); text-shadow: 1px 1px 2px #000; }
+
+        /* --- 알림 센터 --- */
+        .notif-panel {
+            position: absolute; right: 0; bottom: 44px; width: 380px; height: calc(100% - 44px);
+            background: rgba(10, 14, 23, 0.95); backdrop-filter: blur(10px); border-left: 1px solid var(--border-dim);
+            z-index: 9998; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; box-shadow: -5px 0 20px rgba(0,0,0,0.8);
+        }
+        .notif-panel.open { transform: translateX(0); }
+        .notif-header { padding: 15px; border-bottom: 1px solid var(--border-dim); font-family: var(--font-mono); font-weight: bold; color: var(--text-main); display: flex; justify-content: space-between;}
+        .notif-list { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        
+        .notif-card { background: #111827; border: 1px solid var(--border-dim); padding: 12px; cursor: pointer; transition: 0.2s; position: relative; }
+        .notif-card:hover { background: #1f2937; transform: translateX(-5px); }
+        .notif-card.crit { border-left: 4px solid var(--accent-red); background: rgba(239,68,68,0.05); }
+        .notif-card.warn { border-left: 4px solid var(--accent-yellow); background: rgba(245,158,11,0.05); }
+        .notif-card.terror { border-left: 4px solid var(--accent-purple); background: rgba(168,85,247,0.05); }
+        .notif-card.info { border-left: 4px solid var(--accent-green); background: rgba(16,185,129,0.05); }
+
+        .notif-time { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); margin-bottom: 5px; }
+        .notif-title { font-weight: bold; font-size: 0.9rem; color: var(--text-main); margin-bottom: 5px; font-family: var(--font-ui); text-transform: uppercase;}
+        .notif-desc { font-family: var(--text-kr); font-size: 0.8rem; color: #cbd5e1; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;}
+
+        /* --- 창 (Window) 공통 스타일 --- */
+        .window {
+            position: absolute; background: var(--bg-window); border: 1px solid #374151;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.9); display: none; flex-direction: column; 
+            min-width: 400px; min-height: 300px;
+        }
+        .window-header {
+            background: #0f141f; border-bottom: 1px solid var(--border-dim); padding: 8px 12px;
+            display: flex; justify-content: space-between; align-items: center; cursor: grab;
+            font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);
+        }
+        .window-header:active { cursor: grabbing; }
+        .win-title { display: flex; align-items: center; gap: 8px; color: #e2e8f0; font-weight: bold;}
+        .win-controls { display: flex; gap: 6px; }
+        .win-btn { width: 14px; height: 14px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; background: #334155; transition: 0.2s;}
+        .win-btn.close { background: #ef4444; }
+        .win-btn.min { background: #f59e0b; }
+        .win-btn.max { background: #10b981; }
+        .win-btn:hover { filter: brightness(1.3); }
+        .window-content { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-window); }
+
+        /* 8-Way Resizer */
+        .resizer { position: absolute; }
+        .resizer-r { right: -5px; top: 0; width: 10px; height: 100%; cursor: e-resize; z-index: 100;}
+        .resizer-b { bottom: -5px; left: 0; width: 100%; height: 10px; cursor: s-resize; z-index: 100;}
+        .resizer-l { left: -5px; top: 0; width: 10px; height: 100%; cursor: w-resize; z-index: 100;}
+        .resizer-t { top: -5px; left: 0; width: 100%; height: 10px; cursor: n-resize; z-index: 100;}
+        .resizer-br { right: -5px; bottom: -5px; width: 10px; height: 10px; cursor: se-resize; z-index: 110;}
+        .resizer-bl { left: -5px; bottom: -5px; width: 10px; height: 10px; cursor: sw-resize; z-index: 110;}
+        .resizer-tr { right: -5px; top: -5px; width: 10px; height: 10px; cursor: ne-resize; z-index: 110;}
+        .resizer-tl { left: -5px; top: -5px; width: 10px; height: 10px; cursor: nw-resize; z-index: 110;}
+
+        /* --- [App] Sys_Monitor --- */
+        #app-status { width: 1000px; height: 650px; top: 5vh; left: 5vw; }
+        .monitor-layout { display: flex; height: 100%; flex-direction: row; }
+        
+        .mon-left { 
+            width: 300px; min-width: 250px; border-right: 1px solid var(--border-dim); padding: 15px; 
+            display: flex; flex-direction: column; gap: 20px; background: #0a0e17; overflow-y: auto;
+        }
+        .mon-section-title { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-blue); margin-bottom: 12px; border-bottom: 1px dashed var(--border-dim); padding-bottom: 5px; font-weight: bold;}
+        
+        .stat-block { margin-bottom: 15px; }
+        .stat-label { font-family: var(--text-kr); font-size: 0.8rem; color: #cbd5e1; display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold;}
+        .stat-bar-bg { width: 100%; height: 8px; background: #000; border: 1px solid #1f2937; border-radius: 2px; }
+        .stat-bar-fill { height: 100%; background: var(--accent-blue); transition: width 0.3s; }
+        
+        .res-list { display: flex; flex-direction: column; gap: 6px; }
+        .res-row { background: #000; border: 1px solid #1f2937; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-family: var(--text-kr); font-size: 0.8rem; color: var(--text-muted); }
+        .res-row .num { color: #fff; font-weight: bold; font-family: var(--font-mono); font-size: 0.95rem;}
+
+        .mon-right { flex: 1; position: relative; background: #02040a; overflow: hidden; display: flex; flex-direction: column;}
+        
+        /* Canvas Map Canvas */
+        #tactical-canvas { flex: 1; display: block; width: 100%; height: 100%; cursor: grab; }
+        #tactical-canvas:active { cursor: grabbing; }
+        
+        .map-overlay { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; z-index: 10; }
+        .map-btn { background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-dim); color: var(--text-muted); padding: 5px 10px; cursor: pointer; font-family: var(--font-mono); font-size: 0.75rem; transition: 0.2s; }
+        .map-btn:hover { background: var(--accent-blue); color: #fff; }
+        .map-legend { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); border: 1px solid #374151; padding: 8px; font-family: var(--text-kr); font-size: 0.7rem; color: #94a3b8; pointer-events: none; z-index: 10;}
+        .legend-item { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; font-weight: bold;}
+        .legend-color { width: 10px; height: 10px; border-radius: 2px; }
+
+        /* --- [App] Incident Dispatch & Dilemma --- */
+        #app-dispatch { width: 650px; height: 650px; top: 10vh; left: 20vw; }
+        .dispatch-content { padding: 20px; font-family: var(--font-mono); font-size: 0.85rem; display: flex; flex-direction: column; gap: 20px; flex: 1; overflow-y: auto;}
+        
+        .sitrep-box { background: rgba(0,0,0,0.6); border: 1px solid #374151; padding: 15px; border-left: 4px solid var(--accent-yellow); }
+        .sitrep-box.crit { border-left-color: var(--accent-red); background: rgba(239,68,68,0.05); }
+        .sitrep-box.terror { border-left-color: var(--accent-purple); background: rgba(168,85,247,0.05); }
+        .sitrep-box.success { border-left-color: var(--accent-green); background: rgba(16,185,129,0.05); }
+        .sitrep-title { font-weight: bold; margin-bottom: 10px; font-size: 1rem; text-transform: uppercase;}
+        .sitrep-title.red { color: var(--accent-red); }
+        .sitrep-title.orange { color: var(--accent-yellow); }
+        .sitrep-title.purple { color: var(--accent-purple); }
+        .sitrep-title.green { color: var(--accent-green); }
+        .sitrep-text { font-family: var(--text-kr); color: #cbd5e1; line-height: 1.6; font-size: 0.9rem; white-space: pre-line;}
+
+        .form-section { border: 1px solid var(--border-dim); padding: 15px; background: #0a0e17; margin-top: 10px;}
+        .form-title { color: var(--text-main); margin-bottom: 12px; font-size: 0.8rem; font-weight: bold; border-bottom: 1px solid #1f2937; padding-bottom: 5px; font-family: var(--text-kr);}
+        .alloc-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .input-row { display: flex; justify-content: space-between; align-items: center; background: #000; padding: 6px 10px; border: 1px solid #1f2937; }
+        .input-row label { color: var(--text-muted); font-size: 0.75rem; font-family: var(--text-kr); font-weight: bold;}
+        .input-row input { width: 50px; background: transparent; border: none; border-bottom: 1px solid var(--accent-blue); color: #fff; text-align: center; font-family: var(--font-mono); font-size: 0.9rem; outline: none; }
+        
+        .directive-area textarea {
+            width: 100%; height: 100px; background: #000; border: 1px solid #374151; color: #e2e8f0;
+            padding: 12px; font-family: var(--text-kr); font-size: 0.9rem; resize: vertical; outline: none; margin-top: 10px; line-height: 1.5;
+        }
+
+        .btn-exec {
+            width: 100%; background: #0f172a; color: var(--accent-blue); border: 1px solid var(--accent-blue);
+            padding: 12px; font-family: var(--text-kr); font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.2s;
+        }
+        .btn-exec:hover { background: var(--accent-blue); color: #fff; }
+
+        /* AAR View (결과 보고서용) */
+        .aar-container { background: #050505; border: 1px solid #334155; padding: 20px; font-family: var(--text-kr); color: #e2e8f0; }
+        .aar-header { border-bottom: 2px solid #334155; margin-bottom: 15px; padding-bottom: 10px; }
+        .aar-title { font-size: 1.2rem; font-weight: bold; color: var(--accent-green); margin-bottom: 5px; font-family: var(--font-mono);}
+        .aar-meta { font-size: 0.8rem; color: #94a3b8; font-family: var(--font-mono); }
+        .aar-body { font-size: 0.9rem; line-height: 1.7; margin-bottom: 20px; white-space: pre-wrap; color: #cbd5e1; }
+        
+        .aar-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;}
+        .stat-change { padding: 10px; background: #0f172a; border: 1px solid #1f2937; font-family: var(--text-kr); font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;}
+        .stat-change .pos { color: var(--accent-green); font-weight: bold; font-family: var(--font-mono); font-size: 0.9rem;}
+        .stat-change .neg { color: var(--accent-red); font-weight: bold; font-family: var(--font-mono); font-size: 0.9rem;}
+
+        /* Dilemma (Messenger) UI */
+        .msg-ui { background: #0a0e17; border: 1px solid var(--border-dim); display: flex; flex-direction: column; height: 100%; min-height: 400px; }
+        .msg-history { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .msg-bubble { max-width: 80%; padding: 12px 15px; border-radius: 8px; font-family: var(--text-kr); font-size: 0.9rem; line-height: 1.5; position: relative;}
+        .msg-bubble.left { align-self: flex-start; background: #1e293b; color: #f8fafc; border-bottom-left-radius: 0; }
+        .msg-bubble.right { align-self: flex-end; background: var(--accent-blue); color: #fff; border-bottom-right-radius: 0; }
+        .msg-author { font-size: 0.75rem; color: #94a3b8; margin-bottom: 5px; font-weight: bold; }
+        .msg-bubble.right .msg-author { display: none; }
+        .dilemma-choices { padding: 15px; background: #000; border-top: 1px solid #1f2937; display: flex; gap: 10px; }
+        .btn-choice { flex: 1; padding: 12px; font-family: var(--text-kr); font-weight: bold; background: #1f2937; color: #fff; border: 1px solid #374151; cursor: pointer; transition: 0.2s; border-radius: 4px;}
+        .btn-choice:hover { background: var(--accent-blue); border-color: var(--accent-blue); }
+
+        /* --- [App] Daily Report (HQ 결산용) --- */
+        #app-daily-report { width: 700px; height: 600px; top: 12vh; left: 25vw; z-index: 99999; }
+        .daily-content { padding: 30px; display: flex; flex-direction: column; height: 100%; background: #e2e8f0; color: #0f172a; font-family: 'Times New Roman', serif; overflow-y: auto;}
+        .daily-header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 25px; position: relative;}
+        .daily-header::before { content: 'CONFIDENTIAL'; position: absolute; top: 0; right: 0; color: #dc2626; border: 1px solid #dc2626; padding: 2px 5px; font-size: 0.8rem; font-family: var(--font-mono); font-weight: bold;}
+        .daily-header h2 { font-size: 1.6rem; margin-bottom: 8px; font-weight: bold;}
+        .daily-header p { font-size: 0.95rem; font-weight: bold; margin-bottom: 3px;}
+        .daily-form { flex: 1; display: flex; flex-direction: column; gap: 15px; }
+        .daily-form label { font-weight: bold; font-size: 1rem; margin-bottom: 5px;}
+        .daily-form textarea { flex: 1; min-height: 250px; padding: 15px; font-family: var(--text-kr); font-size: 1rem; border: 1px solid #94a3b8; background: #fff; resize: none; line-height: 1.7; outline: none; color: #0f172a;}
+        .daily-form textarea:focus { border-color: #0f172a; box-shadow: 0 0 5px rgba(0,0,0,0.2); }
+        .btn-submit-report { background: #0f172a; color: #fff; border: none; padding: 15px; font-family: var(--text-kr); font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s;}
+        .btn-submit-report:hover { background: #1e293b; }
+
+        /* --- Turn Processing / Demo End Overlay --- */
+        .turn-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 100000; display: none;
+            justify-content: center; align-items: center; flex-direction: column;
+            color: var(--accent-blue); font-family: var(--font-mono); font-size: 1.5rem; letter-spacing: 2px;
+        }
+        #end-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 999999; display: none;
+            justify-content: center; align-items: center; flex-direction: column;
+            color: #fff; font-family: var(--text-kr); text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="desktop-bg"><img src="image_3ddcbc.png" alt="NYPD"></div>
+    <div class="scanlines"></div>
+
+    <!-- 프롤로그 화면 -->
+    <div id="prologue-screen">
+        <div id="boot-sequence">
+            <img src="image_3ddcbc.png" alt="NYPD">
+            <h2>NYPD TACTICAL OS v3.1</h2>
+            <p style="margin-top:10px; color: var(--text-muted);">SYSTEM INITIALIZING...</p>
+        </div>
+        <div id="email-client">
+            <div class="email-header">
+                <p>FROM: 1 POLICE PLAZA (NYPD HQ)</p>
+                <p>TO: COMMANDER, PRECINCT 01</p>
+                <h2>[긴급 지시사항] 맨해튼 1구역 전면 봉쇄 및 지휘권 이양</h2>
+            </div>
+            <div class="email-body">
+                현재 전염병의 걷잡을 수 없는 확산과 이로 인한 시민들의 폭동으로 인하여 뉴욕시 전역에 통제 불능 사태가 선포되었습니다.<br><br>
+                이에 따라 주 방위군이 도착할 때까지 맨해튼 1구역을 전면 봉쇄하며, 귀하를 해당 구역의 총괄 책임자로 배정합니다.<br><br>
+                외부와의 통신 및 물자 지원은 극히 제한적일 것입니다. 한정된 인력과 자원으로 치안을 유지하고 시민들을 보호하십시오.<br><br>
+                행운을 빕니다.
+            </div>
+            <button class="btn-accept" onclick="startGame()">권한 수락 및 시스템 동기화 (START)</button>
+        </div>
+    </div>
+
+    <!-- Turn Overlay -->
+    <div class="turn-overlay" id="turn-overlay">
+        <div style="margin-bottom: 15px;">> TRANSMITTING DIRECTIVES TO HQ...</div>
+        <div style="color: var(--text-muted); font-size: 1rem;">AWAITING FIELD REPORTS <span style="animation: blinker 1s infinite;">_</span></div>
+    </div>
+
+    <!-- 데모 종료 화면 -->
+    <div id="end-screen">
+        <h1 style="font-size: 2.5rem; color: var(--accent-red); margin-bottom: 20px;">TFR : REQUIEM</h1>
+        <p style="font-size: 1.2rem; color: #cbd5e1; margin-bottom: 30px;">테스터 배포용 빌드(15턴) 플레이가 종료되었습니다.<br>플레이해주셔서 감사합니다.</p>
+    </div>
+
+    <!-- Desktop Icons -->
+    <div class="desktop" id="desktop">
+        <div class="icon" ondblclick="openWindow('app-status')">
+            <svg class="icon-img" viewBox="0 0 24 24"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 10h2v7H7v-7zm4-3h2v10h-2V7zm4 6h2v4h-2v-4z"/></svg>
+            <div class="icon-text">Sys_Monitor.exe</div>
+        </div>
+        <div class="icon" ondblclick="openWindow('app-dispatch')">
+            <svg class="icon-img" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z"/></svg>
+            <div class="icon-text">Terminal_Link.exe</div>
+        </div>
+    </div>
+
+    <!-- 고정형 인트라넷 위젯 -->
+    <div class="intranet-widget" id="intranet-widget">
+        <div class="intranet-header">> INTRANET_BBS.net [LIVE CHATTER]</div>
+        <div class="chat-container" id="chat-board">
+            <div class="chat-msg"><div class="chat-meta"><span class="author">SYS_ADMIN</span><span>시스템 동기화 완료</span></div><div class="chat-text">인트라넷 모니터링 중입니다. 작전 기밀 누설을 금지합니다.</div></div>
+        </div>
+    </div>
+
+    <!-- Notification Panel -->
+    <div class="notif-panel" id="notif-panel">
+        <div class="notif-header">
+            <span>> INBOX_ALERTS</span>
+            <span style="cursor:pointer; color:var(--text-muted);" onclick="toggleNotif()">[CLOSE]</span>
+        </div>
+        <div class="notif-list" id="notif-list"></div>
+    </div>
+
+    <!-- Taskbar -->
+    <div class="taskbar">
+        <div class="taskbar-left">
+            <div class="start-btn">TFR: REQUIEM</div>
+            <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-left: 10px;">ID: ADMIN_PCT01</span>
+        </div>
+        <div class="taskbar-right">
+            <div class="tray-item notif-btn" onclick="toggleNotif()">
+                ALERTS <span class="badge" id="notif-badge">0</span>
+            </div>
+            <div class="tray-item" style="color:#fff; font-weight:bold; width: 170px; justify-content: center;" id="date-display">
+                2022-02-13 | 오전
+            </div>
+            <div class="tray-item" style="color:#fff; font-weight:bold; width: 80px; justify-content: center;">
+                TURN <span id="turn-counter" style="margin-left:5px;">01</span>
+            </div>
+            <div class="tray-item btn-turn" id="btn-next-turn" onclick="executeNextTurn()">[NEXT TURN]</div>
+        </div>
+    </div>
+
+    <!-- WINDOWS -->
+    <div id="windows-container">
+        
+        <!-- App: System Monitor (초기 상태: 꺼짐) -->
+        <div class="window" id="app-status" style="display: none; top: 5vh; left: 2vw; width: 1100px; height: 750px;">
+            <div class="window-header" onmousedown="startDrag(event, 'app-status')">
+                <div class="win-title">Sys_Monitor.exe [PRECINCT OVERVIEW]</div>
+                <div class="win-controls"><div class="win-btn close" onclick="closeWindow('app-status')">✕</div></div>
+            </div>
+            <div class="window-content monitor-layout">
+                <div class="mon-left">
+                    <div>
+                        <div class="mon-section-title">> 시스템 상태 (SYSTEM METRICS)</div>
+                        <div class="stat-block">
+                            <div class="stat-label"><span>혼란도 (CHAOS LEVEL)</span> <span id="stat-chaos-txt" style="color:var(--accent-yellow)">1단계 (통제)</span></div>
+                            <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-chaos" style="width: 20%; background:var(--accent-yellow)"></div></div>
+                        </div>
+                        <div class="stat-block">
+                            <div class="stat-label"><span>치안도 (PUBLIC ORDER)</span> <span id="stat-order" style="color:#fff">65%</span></div>
+                            <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-order" style="width: 65%;"></div></div>
+                        </div>
+                        <div class="stat-block">
+                            <div class="stat-label"><span>감염도 (INFECTION RATE)</span> <span id="stat-infect" style="color:var(--accent-red)">15%</span></div>
+                            <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-infect" style="width: 15%; background:var(--accent-red)"></div></div>
+                        </div>
+                        <div class="stat-block">
+                            <div class="stat-label"><span>경관 사기 (UNIT MORALE)</span> <span id="stat-morale" style="color:#fff">70%</span></div>
+                            <div class="stat-bar-bg"><div class="stat-bar-fill" id="bar-morale" style="width: 70%; background:var(--accent-green)"></div></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="mon-section-title">> 자원 현황 (ASSET INVENTORY)</div>
+                        <div class="res-list">
+                            <div class="res-row"><span>경찰 인력 (PERSONNEL)</span> <span class="num" id="res-personnel">30</span></div>
+                            <div class="res-row"><span>비살상 무기 (NON-LETHAL)</span> <span class="num" id="res-nonlethal">20</span></div>
+                            <div class="res-row"><span>살상 무기 (LETHAL WPN)</span> <span class="num" id="res-lethal">50</span></div>
+                            <div class="res-row"><span>의료품 (MED KITS)</span> <span class="num" id="res-meds">10</span></div>
+                            <div class="res-row"><span>비상 식량 (RATIONS)</span> <span class="num" id="res-food">30</span></div>
+                            <div class="res-row"><span>방역 마스크 (PPE MASKS)</span> <span class="num" id="res-ppe">15</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mon-right">
+                    <div class="map-overlay" style="position: absolute; top: 10px; right: 10px; z-index: 10;">
+                        <button class="map-btn" onclick="resetMapCamera()">[ RESET VIEW ]</button>
+                    </div>
+                    <div class="map-legend">
+                        <div class="legend-item"><div class="legend-color" style="background:#3b82f6;"></div> 안전 구역 (SECURE)</div>
+                        <div class="legend-item"><div class="legend-color" style="background:#f59e0b;"></div> 위험 구역 (WARNING)</div>
+                        <div class="legend-item"><div class="legend-color" style="background:#ef4444;"></div> 폭도 점거 (OCCUPIED)</div>
+                        <div class="legend-item"><div class="legend-color" style="background:#a855f7;"></div> 테러 위험 (TERROR)</div>
+                        <div class="legend-item"><div style="color:#f59e0b; font-weight:bold; font-size:14px; margin-right:4px;">!</div> 사건 발생 (INCIDENT)</div>
+                    </div>
+                    <canvas id="tactical-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- App: Incident Dispatch Console (초기 상태: 꺼짐) -->
+        <div class="window" id="app-dispatch" style="display: none; top: 10vh; left: 25vw; width: 700px; height: 750px;">
+            <div class="window-header" onmousedown="startDrag(event, 'app-dispatch')">
+                <div class="win-title">Terminal_Link.exe</div>
+                <div class="win-controls"><div class="win-btn close" onclick="closeWindow('app-dispatch')">✕</div></div>
+            </div>
+            <div class="window-content">
+                <div class="dispatch-content" id="dispatch-view">
+                    <div style="text-align:center; padding: 50px; color: var(--text-muted); font-size: 0.9rem;">
+                        [ SYSTEM INITIALIZING ]<br><br>Waiting for dispatch network sync...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App: Daily Report (HQ 결산용) -->
+        <div class="window" id="app-daily-report" style="display: none; top: 5vh; left: 25vw; width: 800px; height: 800px;">
+            <div class="window-header" onmousedown="startDrag(event, 'app-daily-report')">
+                <div class="win-title">HQ_Uplink.exe - 일일 보고서 제출</div>
+            </div>
+            <div class="window-content daily-content" style="background: #e2e8f0; color: #0f172a; font-family: 'Times New Roman', serif; padding: 30px; overflow-y: auto;">
+                <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 25px; position: relative;">
+                    <div style="position: absolute; top: 0; right: 0; color: #dc2626; border: 1px solid #dc2626; padding: 2px 5px; font-size: 0.8rem; font-family: var(--font-mono); font-weight: bold;">CONFIDENTIAL</div>
+                    <h2 style="font-size: 1.6rem; margin-bottom: 8px; font-weight: bold;">NYPD FORM #49 - DAILY COMMANDER'S REPORT</h2>
+                    <p style="font-size: 0.95rem; font-weight: bold; margin-bottom: 3px;">TO: 1 POLICE PLAZA (HQ COMMAND)</p>
+                    <p id="daily-date-label" style="font-weight: bold;">DATE: 2022-02-13</p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 15px; flex: 1;">
+                    <label style="font-weight: bold; font-size: 1rem; font-family: var(--text-kr);">본부에 전달할 오늘의 관할서 통제 상황, 피해 규모 및 물자 요청 사항을 기재하십시오.</label>
+                    <textarea id="daily-report-text" placeholder="본문 작성..." style="flex: 1; min-height: 250px; padding: 15px; font-family: var(--text-kr); font-size: 1rem; border: 1px solid #94a3b8; resize: none; line-height: 1.7; outline: none;"></textarea>
+                    <button onclick="submitDailyReport()" style="background: #0f172a; color: #fff; border: none; padding: 15px; font-family: var(--text-kr); font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s;">본부 전송 및 다음 날 진행</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // 🚨 [매우 중요] API 키 및 AI 모델 설정
+        // =========================================================================
+        // 1. API 키 (Canvas 환경에서는 비워두고, 로컬 환경에서 직접 열 때는 본인의 키 입력)
+        const apiKey = "AIzaSyBnWsSWEDNJxE-JVu4kiIaEgDk8vWMsrAk"; 
+        
+        // 2. 사용할 AI 모델 설정 (이곳에서 모델명을 수정할 수 있습니다)
+        // - Canvas 환경 권장: "gemini-2.5-flash-preview-09-2025"
+        // - 로컬 환경 권장 (정식 모델): "gemini-2.5-flash" 또는 "gemini-1.5-flash"
+        const aiModel = "gemini-2.5-flash";
+        // =========================================================================
+        
+        // --- 1. OS Core & UI Management ---
+        let draggedWin = null, startX, startY, initialX, initialY, zIndexCounter = 100;
+        
+        function makeResizable(win) {
+            const directions = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
+            directions.forEach(dir => {
+                const resizer = document.createElement('div');
+                resizer.className = `resizer resizer-${dir}`;
+                win.appendChild(resizer);
+                resizer.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); e.stopPropagation();
+                    let sX = e.clientX, sY = e.clientY;
+                    let sW = parseInt(document.defaultView.getComputedStyle(win).width, 10);
+                    let sH = parseInt(document.defaultView.getComputedStyle(win).height, 10);
+                    let sTop = win.offsetTop, sLeft = win.offsetLeft;
+
+                    function doDrag(e) {
+                        if (dir.includes('e')) win.style.width = sW + e.clientX - sX + 'px';
+                        if (dir.includes('s')) win.style.height = sH + e.clientY - sY + 'px';
+                        if (dir.includes('w')) { win.style.width = sW - (e.clientX - sX) + 'px'; win.style.left = sLeft + (e.clientX - sX) + 'px'; }
+                        if (dir.includes('n')) { win.style.height = sH - (e.clientY - sY) + 'px'; win.style.top = sTop + (e.clientY - sY) + 'px'; }
+                    }
+                    function stopDrag() {
+                        document.documentElement.removeEventListener('mousemove', doDrag);
+                        document.documentElement.removeEventListener('mouseup', stopDrag);
+                    }
+                    document.documentElement.addEventListener('mousemove', doDrag);
+                    document.documentElement.addEventListener('mouseup', stopDrag);
+                });
+            });
+        }
+
+        document.querySelectorAll('.window').forEach(win => {
+            if(win.style.top === '') win.style.top = '10vh';
+            if(win.style.left === '') win.style.left = '10vw';
+            makeResizable(win); 
+        });
+
+        function startDrag(e, winId) {
+            if(e.target.classList.contains('win-btn') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'CANVAS' || e.target.classList.contains('btn-choice')) return;
+            draggedWin = document.getElementById(winId);
+            draggedWin.style.zIndex = ++zIndexCounter;
+            startX = e.clientX; startY = e.clientY;
+            const rect = draggedWin.getBoundingClientRect();
+            initialX = rect.left; initialY = rect.top;
+            draggedWin.style.margin = '0';
+            document.addEventListener('mousemove', dragWindow);
+            document.addEventListener('mouseup', stopDrag);
+        }
+        function dragWindow(e) {
+            if(!draggedWin) return;
+            draggedWin.style.left = `${initialX + (e.clientX - startX)}px`;
+            draggedWin.style.top = `${initialY + (e.clientY - startY)}px`;
+        }
+        function stopDrag() { document.removeEventListener('mousemove', dragWindow); document.removeEventListener('mouseup', stopDrag); draggedWin = null; }
+        function closeWindow(id) { document.getElementById(id).style.display = 'none'; }
+        function openWindow(id) { const w = document.getElementById(id); w.style.display = 'flex'; w.style.zIndex = ++zIndexCounter; }
+
+        // --- 프롤로그 로직 ---
+        window.onload = () => {
+            setTimeout(() => {
+                document.getElementById('boot-sequence').style.display = 'none';
+                document.getElementById('email-client').style.display = 'flex';
+            }, 3000);
+        };
+
+        function startGame() {
+            document.getElementById('prologue-screen').style.display = 'none';
+            updateUI();
+            
+            // 시작 2초 후 첫 퀘스트 발생
+            setTimeout(() => {
+                createNewIncident('inc-01', 'K_HOS', '센트럴 병원 의료품 탈취 시도', 
+                `병원 정문에 약 100명 이상의 군중이 밀집해 백신과 의료품을 내놓으라며 난동을 부리고 있습니다. 1차 저지선이 위협받고 있으나 심각한 무장 상태는 아닙니다. 조속한 진압이 필요합니다.`, 'warn');
+            }, 2000);
+        }
+
+        // --- 2. Game State & Data ---
+        let turn = 1; 
+        const MAX_TURN = 15; // 15턴 제한 (테스트 빌드)
+        let startDate = new Date('2022-02-13T00:00:00');
+        
+        let chaosLevel = 1; 
+        let chaosPoints = 0; 
+        let stats = { order: 65, infect: 15, morale: 70 };
+        let inventory = { personnel: 30, nonlethal: 20, lethal: 50, meds: 10, food: 30, ppe: 15 };
+        
+        let pendingDispatches = []; 
+        let activeIncidents = {}; 
+        let unreadNotifs = 0;
+        let chatterThisTurn = 0; 
+        let usedChatterThisTurn = []; 
+        let lastTurnReaction = null; 
+
+        function getShiftName() {
+            return ['오전', '오후', '야간'][(turn - 1) % 3];
+        }
+
+        function clampInput(el, maxVal) {
+            if(parseInt(el.value) > maxVal) el.value = maxVal;
+            if(parseInt(el.value) < 0) el.value = 0;
+        }
+
+        function getChaosText() {
+            switch(chaosLevel) {
+                case 1: return "1단계 (통제 가능)";
+                case 2: return "2단계 (폭동 우려)";
+                case 3: return "3단계 (위험 구역 발생)";
+                case 4: return "4단계 (국지적 긴급 사태)";
+                case 5: return "5단계 (시스템 붕괴)";
+                default: return "1단계 (통제 가능)";
+            }
+        }
+
+        function getDateString() {
+            let d = new Date(startDate);
+            d.setDate(d.getDate() + Math.floor((turn - 1) / 3));
+            return `${d.toISOString().split('T')[0]} | ${getShiftName()}`;
+        }
+
+        function updateUI() {
+            if(stats.order < 50 && chaosLevel === 1) chaosLevel = 2;
+            if(stats.order < 35 && chaosLevel === 2) chaosLevel = 3;
+            if(stats.order < 20 && chaosLevel === 3) chaosLevel = 4;
+            if(stats.order <= 0 && chaosLevel === 4) chaosLevel = 5;
+
+            document.getElementById('date-display').innerText = getDateString();
+            document.getElementById('turn-counter').innerText = String(turn).padStart(2, '0');
+
+            document.getElementById('stat-chaos-txt').innerText = getChaosText();
+            document.getElementById('bar-chaos').style.width = `${chaosLevel * 20}%`;
+            document.getElementById('bar-chaos').style.background = chaosLevel >= 4 ? 'var(--accent-red)' : 'var(--accent-yellow)';
+
+            document.getElementById('stat-order').innerText = `${stats.order}%`;
+            document.getElementById('bar-order').style.width = `${stats.order}%`;
+            document.getElementById('bar-order').style.background = stats.order < 30 ? 'var(--accent-red)' : 'var(--accent-blue)';
+
+            document.getElementById('stat-infect').innerText = `${stats.infect}%`;
+            document.getElementById('bar-infect').style.width = `${stats.infect}%`;
+
+            document.getElementById('stat-morale').innerText = `${stats.morale}%`;
+            document.getElementById('bar-morale').style.width = `${stats.morale}%`;
+            document.getElementById('bar-morale').style.background = stats.morale < 30 ? 'var(--accent-red)' : 'var(--accent-green)';
+
+            document.getElementById('res-personnel').innerText = inventory.personnel;
+            document.getElementById('res-nonlethal').innerText = inventory.nonlethal;
+            document.getElementById('res-lethal').innerText = inventory.lethal;
+            document.getElementById('res-meds').innerText = inventory.meds;
+            document.getElementById('res-food').innerText = inventory.food;
+            document.getElementById('res-ppe').innerText = inventory.ppe;
+        }
+
+        // --- 3. Tactical Map (Massive Mindmap) ---
+        const canvas = document.getElementById('tactical-canvas');
+        const ctx = canvas.getContext('2d');
+        let camX = 0, camY = 0, zoom = 0.8;
+        let isDraggingMap = false, mapStartX, mapStartY;
+
+        // 노드 약 80개 생성 (거미줄 구조)
+        let mapNodes = [
+            { id: 'HQ', name: 'PRECINCT 01', x: 0, y: 0, type: 'hq', threat: 'secure', hasIncident: false, r: 18 },
+            { id: 'M_RES', name: 'RESIDENTIAL', x: -500, y: -300, type: 'major', threat: 'secure', hasIncident: false, r: 14 },
+            { id: 'M_IND', name: 'INDUSTRIAL', x: 500, y: -250, type: 'major', threat: 'secure', hasIncident: false, r: 14 },
+            { id: 'M_COM', name: 'COMMERCIAL', x: -450, y: 450, type: 'major', threat: 'secure', hasIncident: false, r: 14 },
+            { id: 'M_QRT', name: 'QUARANTINE', x: 450, y: 400, type: 'major', threat: 'secure', hasIncident: false, r: 14 },
+            { id: 'K_HOS', name: 'HOSPITAL', x: -700, y: -100, type: 'key', threat: 'secure', hasIncident: false, r: 10 },
+            { id: 'K_PWR', name: 'POWER PLANT', x: 750, y: -400, type: 'key', threat: 'secure', hasIncident: false, r: 10 },
+            { id: 'K_MAL', name: 'MEGA MALL', x: -650, y: 650, type: 'key', threat: 'secure', hasIncident: false, r: 10 },
+            { id: 'K_CITY', name: 'CITY HALL', x: 0, y: -500, type: 'key', threat: 'secure', hasIncident: false, r: 10 },
+            { id: 'K_PRT', name: 'PORT', x: 750, y: 150, type: 'key', threat: 'secure', hasIncident: false, r: 10 }
+        ];
+
+        // 하위 구역(Minor) 대량 생성
+        for(let i=1; i<=70; i++) {
+            let cx, cy;
+            if(i<=15) { cx = 0; cy = 0; } 
+            else if(i<=28) { cx = -500; cy = -300; } 
+            else if(i<=41) { cx = 500; cy = -250; } 
+            else if(i<=55) { cx = -450; cy = 450; } 
+            else { cx = 450; cy = 400; } 
+            
+            let angle = Math.random() * Math.PI * 2;
+            let dist = 80 + Math.random() * 200;
+            mapNodes.push({ id: `m${i}`, name: `Sec-${i}`, x: cx + Math.cos(angle)*dist, y: cy + Math.sin(angle)*dist, type: 'minor', threat: 'secure', hasIncident: false, r: 4 });
+        }
+
+        let mapEdges = [
+            ['HQ','M_RES'], ['HQ','M_IND'], ['HQ','M_COM'], ['HQ','M_QRT'], ['HQ','K_CITY'],
+            ['M_RES','K_HOS'], ['M_RES','K_CITY'], ['M_IND','K_PWR'], ['M_IND','K_PRT'], ['M_IND','K_CITY'],
+            ['M_COM','K_MAL'], ['M_COM','M_RES'], ['M_QRT','K_PRT'], ['M_QRT','M_COM']
+        ];
+        
+        for(let i=1; i<=70; i++) {
+            let n1 = mapNodes.find(n => n.id === `m${i}`);
+            let nearest = mapNodes.filter(n => n.type !== 'minor' && n.id !== n1.id).sort((a,b) => Math.hypot(a.x-n1.x, a.y-n1.y) - Math.hypot(b.x-n1.x, b.y-n1.y))[0];
+            mapEdges.push([n1.id, nearest.id]);
+            if(i>1 && Math.random()>0.3) mapEdges.push([n1.id, `m${i-1}`]);
+            if(i>3 && Math.random()>0.7) mapEdges.push([n1.id, `m${i-3}`]); 
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width; canvas.height = rect.height;
+            if(camX === 0 && camY === 0) resetMapCamera();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        setInterval(resizeCanvas, 1000);
+
+        function resetMapCamera() { camX = canvas.width / 2; camY = canvas.height / 2; zoom = 0.5; }
+
+        canvas.addEventListener('mousedown', e => { isDraggingMap = true; mapStartX = e.clientX - camX; mapStartY = e.clientY - camY; });
+        window.addEventListener('mousemove', e => { if(isDraggingMap) { camX = e.clientX - mapStartX; camY = e.clientY - mapStartY; }});
+        window.addEventListener('mouseup', () => isDraggingMap = false);
+        canvas.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.min(Math.max(0.1, zoom + (e.deltaY * -0.001)), 2.5); });
+
+        function drawMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+            for(let i=(camX% (50*zoom)) - 50*zoom; i<canvas.width; i+=50*zoom) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+            for(let i=(camY% (50*zoom)) - 50*zoom; i<canvas.height; i+=50*zoom) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
+
+            ctx.translate(camX, camY); ctx.scale(zoom, zoom);
+
+            ctx.lineWidth = 1.5;
+            mapEdges.forEach(edge => {
+                let n1 = mapNodes.find(n => n.id === edge[0]); let n2 = mapNodes.find(n => n.id === edge[1]);
+                if(n1 && n2) {
+                    ctx.beginPath(); ctx.moveTo(n1.x, n1.y); ctx.lineTo(n2.x, n2.y);
+                    if(n1.threat === 'terror' || n2.threat === 'terror') { ctx.strokeStyle = 'rgba(168, 85, 247, 0.8)'; ctx.setLineDash([5, 5]); }
+                    else if(n1.threat === 'occupied' || n2.threat === 'occupied') { ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)'; ctx.setLineDash([5, 5]); } 
+                    else if (n1.threat === 'warning' || n2.threat === 'warning') { ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)'; ctx.setLineDash([10, 5]); } 
+                    else { ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)'; ctx.setLineDash([]); }
+                    ctx.stroke();
+                }
+            });
+            ctx.setLineDash([]);
+
+            mapNodes.forEach(node => {
+                let color = '#3b82f6'; 
+                if(node.threat === 'occupied') color = '#ef4444';
+                if(node.threat === 'warning') color = '#f59e0b';
+                if(node.threat === 'terror') color = '#a855f7';
+                
+                ctx.shadowBlur = (node.threat === 'occupied' || node.threat === 'terror') ? 25 : 5;
+                ctx.shadowColor = color;
+                
+                ctx.beginPath();
+                if(node.type === 'hq') { ctx.rect(node.x - node.r, node.y - node.r, node.r*2, node.r*2); } 
+                else if(node.type === 'major') {
+                    for (let i = 0; i < 6; i++) { ctx.lineTo(node.x + node.r * Math.cos(i * Math.PI / 3), node.y + node.r * Math.sin(i * Math.PI / 3)); }
+                    ctx.closePath();
+                } else { ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2); }
+                ctx.fillStyle = '#0a0e17'; ctx.fill(); ctx.strokeStyle = color; ctx.lineWidth = node.type === 'minor' ? 1.5 : 2.5; ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                if(node.hasIncident) {
+                    ctx.fillStyle = node.threat === 'terror' ? '#a855f7' : '#f59e0b'; 
+                    ctx.beginPath(); ctx.arc(node.x + node.r + 5, node.y - node.r - 5, 12, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#000'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', node.x + node.r + 5, node.y - node.r - 5);
+                }
+
+                if(node.type !== 'minor') {
+                    ctx.fillStyle = color; ctx.font = 'bold 12px "JetBrains Mono"'; ctx.textAlign = 'center'; ctx.fillText(node.name, node.x, node.y + node.r + 18);
+                }
+            });
+
+            ctx.restore(); requestAnimationFrame(drawMap);
+        }
+        setTimeout(() => { resizeCanvas(); drawMap(); }, 500);
+
+        // --- 4. Notification ---
+        function toggleNotif() {
+            const panel = document.getElementById('notif-panel');
+            panel.classList.toggle('open');
+            if(panel.classList.contains('open')) { unreadNotifs = 0; document.getElementById('notif-badge').style.display = 'none'; }
+        }
+
+        function addNotification(id, title, desc, type, clickAction = null) {
+            const list = document.getElementById('notif-list');
+            const time = getShiftName(); 
+            const card = document.createElement('div');
+            card.className = `notif-card ${type}`;
+            
+            const existing = document.getElementById(`notif-${id}`);
+            if(existing) existing.remove();
+            card.id = `notif-${id}`;
+
+            card.innerHTML = `<div class="notif-time">[${time}]</div><div class="notif-title">${title}</div><div class="notif-desc">${desc}</div>`;
+            
+            if(clickAction) {
+                card.onclick = () => { 
+                    clickAction(); 
+                    toggleNotif(); 
+                    // 알림 카드 자동 삭제를 막고 작전을 '제출'해야만 사라지게 합니다. (stageDispatch에서 삭제)
+                };
+            }
+            list.prepend(card);
+
+            if(!document.getElementById('notif-panel').classList.contains('open')) {
+                unreadNotifs++; document.getElementById('notif-badge').innerText = unreadNotifs; document.getElementById('notif-badge').style.display = 'block';
+            }
+        }
+
+        // --- 5. Intranet Chatter ---
+        const officerNames = ["Sgt. Miller", "Cpl. Davis", "Off. Rodriguez", "Lt. Anderson", "Off. Smith", "Sgt. Chen", "Off. Williams", "Cpl. Martinez", "Off. Taylor", "Sgt. Brown", "Off. Wilson", "Lt. Moore", "Off. Jackson", "Cpl. Martin", "Sgt. Lee", "Off. Perez", "Off. Thompson", "Cpl. White", "Sgt. Harris", "Off. Sanchez", "Lt. Clark", "Off. Ramirez", "Cpl. Lewis", "Sgt. Robinson", "Off. Walker", "Off. Young", "Cpl. Allen", "Sgt. King", "Off. Wright", "Lt. Scott", "Off. Torres", "Cpl. Nguyen", "Sgt. Hill", "Off. Flores", "Off. Green", "Lt. Adams", "Cpl. Nelson", "Sgt. Baker", "Off. Hall", "Off. Rivera", "Cpl. Campbell", "Sgt. Mitchell", "Off. Carter", "Lt. Roberts", "Off. Gomez", "Cpl. Phillips", "Sgt. Evans", "Off. Turner", "Off. Diaz", "Lt. Parker"];
+
+        const chatterPool = {
+            general: [
+                "거리 통제 중입니다. 시민 이동 없음.", "비 많이 오네요. 순찰 시야가 좁습니다.", "커피 머신 고장났어... 최고의 하루네.", "다음 통신망 점검 언제입니까?", 
+                "헬기 소리 들렸는데 기분 탓인가...", "차량 연료좀 아껴, 이러다가 도보로 걷겠다고.", "오늘 배급 식량에서 이상한 냄새 납니다.", "본부 응답 바랍니다... 통신 불량인가.", 
+                "젠장.. 봉쇄는 언제 풀리는거야? 브루클린에 가족이 있는데..", "점점 폭도들이 늘고있어... 상황이 정리되길 빌어야지..", "방어벽 보수 좀 부탁합니다."
+            ],
+            lowMorale: [
+                "이대로면 우리 다 죽습니다.", "교대 좀 합시다 제발. 눈이 안 떠져요.", "본부는 상황을 모르는 게 틀림없어.", "도망치는 게 살 길이다...", 
+                "총 내려놓고 싶다 진짜.", "사상자가 계속 나와... 못 버텨.", "지원 안 오면 파업할 겁니다.", "정부가 우릴 뉴욕에 가뒀어."
+            ],
+            lowOrder: [
+                "저기 놈들 총 들었습니다! 지원 바람!", "약탈 통제 불능. 후퇴 허가해주십시오.", "경고사격 소용 없습니다.", "바리케이드 뚫립니다!", 
+                "화염병 날아옵니다 조심해!", "전 구역이 난장판입니다.", "도저히 수가 감당이 안 돼!", "민간인 통제가 안 됩니다!"
+            ],
+            reactionPositive: [
+                "지난 작전 아주 깔끔했습니다.", "서장님 지시가 정확했어요. 부상 없이 끝났습니다.", "방어선 굳건합니다. 이대로만 갑시다.", 
+                "본부 지시 통했습니다. 놈들 다 쫓아냈어요.", "위험했는데 잘 넘겼네요."
+            ],
+            reactionMixed: [
+                "작전은 완수했는데... 우리 애들 다친 게 뼈아프네.", "이게 이긴 건지 모르겠습니다.", "명령대로 쐈습니다. 피가 지워지질 않네요.", 
+                "무기는 지켰지만 시민들이 우릴 악마 보듯 합니다.", "명령이라 따랐지만, 다음엔 이런 방식은 피했으면 합니다."
+            ],
+            reactionNegative: [
+                "작전 완전 실패입니다. 지휘부가 상황을 오판했어요.", "우리 애들 다 죽일 셈입니까?!", "그딴 지시를 내리다니 제정신이야?", 
+                "무기 다 뺏기고 도망쳤습니다. 책임지십쇼.", "이건 자살 작전이었습니다. 다음엔 명령 거부하겠습니다."
+            ]
+        };
+
+        setInterval(() => {
+            let triggerReaction = false;
+            if(lastTurnReaction && Math.random() < 0.8) triggerReaction = true;
+
+            // 간격을 늘려 도배 방지 (12초에 한 번 검사, 50% 확률로 발생)
+            if(chatterThisTurn < 5 && Math.random() < 0.5) {
+                let pool = chatterPool.general;
+                let isReaction = false;
+
+                if (triggerReaction) {
+                    if (lastTurnReaction === 'positive') pool = chatterPool.reactionPositive;
+                    else if (lastTurnReaction === 'mixed') pool = chatterPool.reactionMixed;
+                    else if (lastTurnReaction === 'negative') pool = chatterPool.reactionNegative;
+                    isReaction = true; lastTurnReaction = null;
+                } else {
+                    if(stats.morale < 40) pool = chatterPool.lowMorale;
+                    else if(stats.order < 40) pool = chatterPool.lowOrder;
+                }
+
+                let availableLines = pool.filter(line => !usedChatterThisTurn.includes(line));
+                if(availableLines.length === 0) availableLines = pool;
+
+                const line = availableLines[Math.floor(Math.random() * availableLines.length)];
+                usedChatterThisTurn.push(line);
+                
+                const author = officerNames[Math.floor(Math.random() * officerNames.length)];
+                const board = document.getElementById('chat-board');
+                
+                if (board) {
+                    let msgClass = '';
+                    if(stats.morale < 40 || (isReaction && pool === chatterPool.reactionNegative)) msgClass = 'crit';
+                    if(isReaction && pool === chatterPool.reactionPositive) msgClass = 'pos';
+
+                    board.innerHTML += `<div class="chat-msg ${msgClass}"><div class="chat-meta"><span class="author">${author}</span><span>${getShiftName()}</span></div><div class="chat-text">${line}</div></div>`;
+                    board.scrollTop = board.scrollHeight;
+                    chatterThisTurn++;
+                }
+            }
+        }, 12000);
+
+        // --- 6. Incident & Dispatch Logic ---
+        
+        function createNewIncident(id, zoneId, title, desc, type, isDilemma = false) {
+            activeIncidents[id] = { id, zoneId, title, desc, type, isDilemma, status: 'OPEN' };
+            let zone = mapNodes.find(z => z.id === zoneId);
+            if(zone) { zone.threat = type === 'terror' ? 'terror' : (type === 'crit' ? 'occupied' : 'warning'); zone.hasIncident = true; }
+            
+            if(isDilemma) {
+                addNotification(id, `[DILEMMA] ${title}`, desc, type, () => openDilemmaForm(id));
+            } else {
+                addNotification(id, `[REQUEST] ${title}`, desc, type, () => openDispatchForm(id));
+            }
+        }
+
+        function openDispatchForm(id) {
+            const data = activeIncidents[id];
+            if(!data || data.status !== 'OPEN') { alert("해당 사건은 이미 지시가 내려졌거나 만료되었습니다."); return; }
+            
+            openWindow('app-dispatch');
+            const view = document.getElementById('dispatch-view');
+            
+            let boxClass = data.type === 'terror' ? 'terror' : (data.type === 'crit' ? 'crit' : '');
+            let titleColor = data.type === 'terror' ? 'purple' : (data.type === 'crit' ? 'red' : 'orange');
+
+            view.innerHTML = `
+                <div class="sitrep-box ${boxClass}">
+                    <div class="sitrep-title ${titleColor}">> SITREP: ${data.title}</div>
+                    <div class="sitrep-text">${data.desc}</div>
+                </div>
+                <div class="form-section">
+                    <div class="form-title">> 작전 자원 할당 (ASSET ALLOCATION)</div>
+                    <div class="alloc-inputs">
+                        <div class="input-row"><label>경찰 병력</label><input type="number" id="in-p" value="0" min="0" oninput="clampInput(this, ${inventory.personnel})"></div>
+                        <div class="input-row"><label>비살상 무기</label><input type="number" id="in-nl" value="0" min="0" oninput="clampInput(this, ${inventory.nonlethal})"></div>
+                        <div class="input-row"><label>살상 무기</label><input type="number" id="in-l" value="0" min="0" oninput="clampInput(this, ${inventory.lethal})"></div>
+                        <div class="input-row"><label>방역 마스크</label><input type="number" id="in-ppe" value="0" min="0" oninput="clampInput(this, ${inventory.ppe})"></div>
+                        <div class="input-row"><label>구급약</label><input type="number" id="in-m" value="0" min="0" oninput="clampInput(this, ${inventory.meds})"></div>
+                        <div class="input-row"><label>비상 식량</label><input type="number" id="in-f" value="0" min="0" oninput="clampInput(this, ${inventory.food})"></div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <div class="form-title">> 서장 지시사항 (COMMAND DIRECTIVE)</div>
+                    <div class="directive-area"><textarea id="in-text" placeholder="현장 지휘관에게 전달할 작전 지시를 입력하십시오. (예: 진압 위주, 방어 위주, 시민 구출 등)"></textarea></div>
+                </div>
+                <button class="btn-exec" onclick="stageDispatch('${id}')">SUBMIT DIRECTIVE (작전 대기열 추가)</button>
+            `;
+        }
+
+        function openDilemmaForm(id) {
+            const data = activeIncidents[id];
+            if(!data || data.status !== 'OPEN') return;
+            
+            openWindow('app-dispatch');
+            const view = document.getElementById('dispatch-view');
+            
+            view.innerHTML = `
+                <div class="msg-ui">
+                    <div style="padding: 10px; background: #111827; border-bottom: 1px solid #1f2937; font-family: var(--font-mono); color: var(--accent-blue); font-weight: bold;">
+                        > DIRECT_LINK : Field Officer
+                    </div>
+                    <div class="msg-history" id="dilemma-history">
+                        <div class="msg-bubble left">
+                            <div class="msg-author">현장 경관</div>
+                            서장님, ${data.desc}
+                        </div>
+                        <div class="msg-bubble left">
+                            <div class="msg-author">현장 경관</div>
+                            어떻게 할까요? 수용할까요, 거절할까요?
+                        </div>
+                    </div>
+                    <div class="dilemma-choices" id="dilemma-btns">
+                        <button class="btn-choice" onclick="resolveDilemma('${id}', 'accept')">[ 수용한다 ]</button>
+                        <button class="btn-choice" style="border-color: var(--accent-red);" onclick="resolveDilemma('${id}', 'reject')">[ 거절한다 ]</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function resolveDilemma(id, choice) {
+            document.getElementById('dilemma-btns').style.display = 'none';
+            const hist = document.getElementById('dilemma-history');
+            
+            let chiefMsg = choice === 'accept' ? "전원 수용하라. 안전을 최우선으로 해." : "거절하라. 우리는 여력이 없다.";
+            let resultTxt = "";
+
+            hist.innerHTML += `<div class="msg-bubble right">${chiefMsg}</div>`;
+            
+            setTimeout(() => {
+                hist.innerHTML += `<div class="msg-bubble left"><div class="msg-author">현장 경관</div>알겠습니다. 명 받들겠습니다.</div>`;
+                hist.scrollTop = hist.scrollHeight;
+                
+                setTimeout(() => {
+                    if(choice === 'accept') {
+                        inventory.food = Math.max(0, inventory.food - 15);
+                        stats.infect += 20; stats.morale += 10;
+                        resultTxt = "식량 -15 소모됨. 피난민 수용으로 인한 감염도 급증(+20). 대원들의 사기 상승(+10).";
+                    } else {
+                        stats.morale -= 20; stats.order -= 10;
+                        resultTxt = "민간인 거절로 인한 대원 사기 급감(-20). 주변 구역의 치안 악화(-10).";
+                    }
+                    updateUI();
+                    document.getElementById(`notif-${id}`)?.remove();
+                    delete activeIncidents[id];
+                    
+                    hist.innerHTML += `<div class="msg-bubble" style="align-self: center; background: transparent; border: 1px dashed var(--accent-yellow); color: var(--accent-yellow); text-align: center; width: 100%; max-width: 100%;">[SYSTEM RESULT]<br>${resultTxt}</div>`;
+                    hist.scrollTop = hist.scrollHeight;
+                }, 1000);
+            }, 1000);
+        }
+
+        function stageDispatch(id) {
+            const p = parseInt(document.getElementById('in-p').value) || 0;
+            const nl = parseInt(document.getElementById('in-nl').value) || 0;
+            const l = parseInt(document.getElementById('in-l').value) || 0;
+            const ppe = parseInt(document.getElementById('in-ppe').value) || 0;
+            const m = parseInt(document.getElementById('in-m').value) || 0;
+            const f = parseInt(document.getElementById('in-f').value) || 0;
+            const text = document.getElementById('in-text').value;
+
+            if(p <= 0) { alert("최소 1명 이상의 인력이 필요합니다."); return; }
+            if(text.length < 5) { alert("상세한 지시사항을 입력해주십시오."); return; }
+
+            inventory.personnel -= p; inventory.nonlethal -= nl; inventory.lethal -= l; 
+            inventory.ppe -= ppe; inventory.meds -= m; inventory.food -= f;
+            updateUI();
+
+            activeIncidents[id].status = 'IN_PROGRESS';
+            pendingDispatches.push({ id, p, nl, l, ppe, m, f, text, data: activeIncidents[id] });
+
+            closeWindow('app-dispatch');
+            document.getElementById(`notif-${id}`)?.remove();
+            unreadNotifs = Math.max(0, unreadNotifs - 1);
+            
+            addNotification('sys', 'SYSTEM NOTIFICATION', `작전 [${activeIncidents[id].title}] 지시 대기 중. [NEXT TURN]을 눌러 실행.`, 'info');
+        }
+
+        // --- 7. Turn Execution ---
+        async function executeNextTurn() {
+            if(turn > MAX_TURN) {
+                endGame();
+                return;
+            }
+
+            if(pendingDispatches.length === 0) { if(!confirm("진행 중인 작전이 없습니다. 턴을 넘기시겠습니까?")) return; }
+            document.getElementById('turn-overlay').style.display = 'flex';
+
+            // 턴 경과에 따른 치안 감소 (혼란도 비례)
+            let orderDrop = chaosLevel * 2; 
+            stats.order -= orderDrop;
+
+            for(let dispatch of pendingDispatches) { await processWithAI(dispatch); }
+
+            pendingDispatches = []; chatterThisTurn = 0; usedChatterThisTurn = []; 
+            document.getElementById('turn-overlay').style.display = 'none';
+            updateUI();
+
+            if (turn % 3 === 0) openDailyReport();
+            else completeTurn();
+        }
+
+        function endGame() {
+            document.getElementById('end-screen').style.display = 'flex';
+        }
+
+        function openDailyReport() {
+            document.getElementById('btn-next-turn').classList.add('disabled');
+            document.getElementById('btn-next-turn').onclick = null;
+
+            let d = new Date(startDate); d.setDate(d.getDate() + Math.floor((turn - 1) / 3));
+            document.getElementById('daily-date-label').innerText = `DATE: ${d.toISOString().split('T')[0]}`;
+            document.getElementById('daily-report-text').value = '';
+            openWindow('app-daily-report');
+        }
+
+        function submitDailyReport() {
+            if(document.getElementById('daily-report-text').value.length < 20) { alert("상세히 작성해주십시오. (최소 20자)"); return; }
+            
+            closeWindow('app-daily-report');
+            document.getElementById('btn-next-turn').classList.remove('disabled');
+            document.getElementById('btn-next-turn').onclick = executeNextTurn;
+            
+            inventory.food += 15; inventory.meds += 5;
+            addNotification('hq-ack', 'HQ 통신 수신', '일일 결산 완료. 보급품(식량+15, 구급약+5) 수령됨.', 'info');
+            completeTurn();
+        }
+
+        function spreadThreat(failedZoneId) {
+            let adjacentEdges = mapEdges.filter(e => e[0] === failedZoneId || e[1] === failedZoneId);
+            if(adjacentEdges.length > 0) {
+                let edge = adjacentEdges[Math.floor(Math.random() * adjacentEdges.length)];
+                let targetId = edge[0] === failedZoneId ? edge[1] : edge[0];
+                let targetNode = mapNodes.find(n => n.id === targetId);
+                if(targetNode && targetNode.threat !== 'occupied' && targetNode.threat !== 'terror') {
+                    targetNode.threat = 'occupied';
+                    addNotification('spread', 'SYSTEM WARNING', `[${targetNode.name}] 구역이 폭도들에게 점거당했습니다.`, 'crit');
+                }
+            }
+        }
+
+        function completeTurn() {
+            turn++; 
+            if (turn > MAX_TURN) {
+                endGame();
+                return;
+            }
+            updateUI();
+            
+            setTimeout(() => {
+                const safeZones = mapNodes.filter(n => n.type !== 'hq' && n.threat !== 'occupied' && n.threat !== 'terror');
+                if(safeZones.length > 0) {
+                    let incidentType = 'warn';
+                    let title = "소요 사태 발생";
+                    let desc = "해당 구역에서 군중이 통제를 벗어나 위협을 가하고 있습니다.";
+                    let isDilemma = false;
+
+                    let r = Math.random();
+                    if(chaosLevel >= 4 && r < 0.3) {
+                        incidentType = 'terror';
+                        title = "극단주의 테러 징후";
+                        desc = "무장 테러리스트 단체가 주요 시설에 폭발물을 설치했다는 첩보가 들어왔습니다. 즉각적인 섬멸이 필요합니다.";
+                    } else if (r < 0.2) {
+                        incidentType = 'warn';
+                        title = "민간인 피난 요청";
+                        desc = "감염된 것으로 보이는 민간인 50명이 무기를 버리고 검문소 앞으로 도망쳐왔습니다. 어떻게 지시하시겠습니까?";
+                        isDilemma = true;
+                    } else if (chaosLevel >= 3 && r < 0.6) {
+                        incidentType = 'crit';
+                        title = "무장 폭동 발생";
+                        desc = "총기로 무장한 시민들이 상가를 점거하고 약탈 중입니다. 대규모 총격전이 예상됩니다.";
+                    }
+
+                    const idx = Math.floor(Math.random() * safeZones.length);
+                    createNewIncident(`inc-${turn}`, safeZones[idx].id, title, desc, incidentType, isDilemma);
+                }
+            }, 2000);
+        }
+
+        // --- 8. AI Processing (Gemini API) ---
+        async function processWithAI(dispatch) {
+            const { id, p, nl, l, ppe, m, f, text, data } = dispatch;
+
+            const prompt = `
+당신은 뉴욕 경찰국 소속 현장 지휘관입니다. 서장의 명령을 수행한 후 공식 사후 보고서(AAR)를 작성해야 합니다.
+- 발생 상황: ${data.title} (${data.desc})
+- 투입 자원: 병력 ${p}명, 저위력 ${nl}정, 살상무기 ${l}정, 방역구 ${ppe}개, 구급약 ${m}개, 식량 ${f}개.
+- 서장 지시: "${text}"
+
+결과를 JSON으로 작성하십시오.
+1. "report": 소설 같은 감정적 묘사를 철저히 배제하고, 공식 AAR 양식으로 건조하고 간결하게 작성할 것. (한국어).
+   반드시 다음 형식을 유지할 것:
+   [작전 개요] 상황 핵심
+   [수행 내역] 지시에 따른 구체적 조치
+   [작전 결과] 성공/실패 여부 및 현장 통제 상태
+2. "casualties": 사망/중상 경찰 수 (투입인력 이하).
+3. "nonlethal_lost", "lethal_lost", "ppe_lost": 잃어버린 장비 수.
+4. "order_change", "morale_change", "infect_change": 스탯 변화 (-20 ~ 20).
+JSON 스키마만 반환할 것.`;
+
+            let result;
+            
+            try {
+                // 상단에서 지정한 aiModel 변수를 사용하여 API 호출
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { responseMimeType: "application/json", responseSchema: {
+                            type: "OBJECT", properties: {
+                                report: { type: "STRING" }, order_change: { type: "INTEGER" }, morale_change: { type: "INTEGER" }, infect_change: { type: "INTEGER" }, 
+                                casualties: { type: "INTEGER" }, nonlethal_lost: { type: "INTEGER" }, lethal_lost: { type: "INTEGER" }, ppe_lost: { type: "INTEGER" }
+                            }, required: ["report", "order_change", "morale_change", "infect_change", "casualties", "nonlethal_lost", "lethal_lost", "ppe_lost"]
+                        }}
+                    })
+                });
+                const rawData = await response.json();
+                if(rawData.error) throw new Error(rawData.error.message);
+                
+                let rawText = rawData.candidates[0].content.parts[0].text;
+                rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                result = JSON.parse(rawText);
+            } catch (e) {
+                console.error("API Call Failed:", e);
+                // API 통신 실패 시 작동하는 오프라인 모의 시뮬레이션
+                let score = p + (nl * 1.5) + (l * 2) + m;
+                let isViolent = text.includes('발포') || text.includes('사격') || text.includes('강경') || text.includes('사살');
+                
+                result = {
+                    report: "⚠️ [SYSTEM WARNING: 통신 오류 - 오프라인 모의 시뮬레이션 가동]\n\n[작전 개요]\n현장 통신망 단절로 인해 시스템에서 자동 산출된 결과임.\n\n[수행 내역]\n지시된 명령에 따라 현장 팀 진입. 군중의 거센 저항으로 대열 유지에 난항.\n\n[작전 결과]\n목표 달성 실패. 투입 인력 및 장비의 손실 발생. 치안 상태 불안정.",
+                    order_change: -10, morale_change: -10, infect_change: 0, 
+                    casualties: Math.ceil(p * 0.3), nonlethal_lost: Math.floor(nl * 0.3), lethal_lost: Math.floor(l * 0.2), ppe_lost: Math.floor(ppe * 0.5)
+                };
+
+                if(score >= 10) {
+                    if(isViolent && l > 0) {
+                        result.order_change = 10; result.morale_change = -15; result.casualties = Math.floor(p * 0.2);
+                        result.report = "⚠️ [오프라인 모의 시뮬레이션]\n\n[작전 개요]\n강경 진압 지시에 따른 상황 통제 작전 수행.\n\n[수행 내역]\n살상 무기를 동원하여 접근하는 시위대 및 폭도를 무력화함.\n\n[작전 결과]\n작전 성공. 구역 치안은 확보되었으나, 다수의 민간인 사상자 발생. 대원들의 극심한 피로도 및 사기 저하가 보고됨.";
+                    } else {
+                        result.order_change = 10; result.morale_change = 5; result.casualties = Math.floor(p * 0.1);
+                        result.report = "⚠️ [오프라인 모의 시뮬레이션]\n\n[작전 개요]\n서장 지시에 기반한 전략적 통제 작전 수행.\n\n[수행 내역]\n적절하게 분배된 자원과 전술적 대형을 통해 폭도를 무력화 및 해산 조치함.\n\n[작전 결과]\n작전 성공. 최소한의 피해로 방어선을 굳건히 하였으며, 현재 구역 통제 상태 양호함.";
+                    }
+                } else { result.order_change = -15; result.morale_change = -15; }
+                if(ppe < p) { result.infect_change = 10; }
+            }
+
+            if(result.order_change > 0 && result.casualties === 0) lastTurnReaction = 'positive';
+            else if(result.order_change > 0 && result.casualties > 0) lastTurnReaction = 'mixed';
+            else lastTurnReaction = 'negative';
+
+            stats.order = Math.min(100, Math.max(0, stats.order + result.order_change));
+            stats.morale = Math.min(100, Math.max(0, stats.morale + result.morale_change));
+            stats.infect = Math.min(100, Math.max(0, stats.infect + result.infect_change));
+            
+            inventory.personnel += Math.max(0, p - result.casualties);
+            inventory.nonlethal += Math.max(0, nl - result.nonlethal_lost);
+            inventory.lethal += Math.max(0, l - result.lethal_lost);
+            inventory.ppe += Math.max(0, ppe - result.ppe_lost);
+
+            let zone = mapNodes.find(z => z.id === data.zoneId);
+            if(zone) {
+                zone.hasIncident = false;
+                if(result.order_change < 0) { zone.threat = 'occupied'; spreadThreat(data.zoneId); chaosPoints++; } 
+                else { zone.threat = 'secure'; }
+            }
+
+            addNotification(`aar-${id}`, `AAR: ${data.title}`, '공식 작전 보고서 수신. 클릭하여 확인.', 'info', () => openAAR(data, result, p, nl, l, ppe));
+        }
+
+        function openAAR(data, result, p, nl, l, ppe) {
+            openWindow('app-dispatch');
+            const view = document.getElementById('dispatch-view');
+            
+            view.innerHTML = `
+                <div class="aar-container">
+                    <div class="aar-header">
+                        <div class="aar-title">OFFICIAL AAR : ${data.title}</div>
+                        <div class="aar-meta">TURN: ${turn - 1}</div>
+                    </div>
+                    <div class="aar-body">${result.report}</div>
+                    
+                    <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-blue); border-bottom: 1px solid #334155; padding-bottom: 5px; margin-bottom: 10px;">> CASUALTIES & LOSSES</div>
+                    <div class="aar-stats" style="margin-bottom: 20px;">
+                        <div class="stat-change"><span>PERSONNEL KIA/WIA</span><span class="${result.casualties === 0 ? 'pos' : 'neg'}">-${result.casualties} / ${p}</span></div>
+                        <div class="stat-change"><span>NON-LETHAL LOST</span><span class="${result.nonlethal_lost === 0 ? 'pos' : 'neg'}">-${result.nonlethal_lost} / ${nl}</span></div>
+                        <div class="stat-change"><span>LETHAL WPN LOST</span><span class="${result.lethal_lost === 0 ? 'pos' : 'neg'}">-${result.lethal_lost} / ${l}</span></div>
+                        <div class="stat-change"><span>PPE MASKS LOST</span><span class="${result.ppe_lost === 0 ? 'pos' : 'neg'}">-${result.ppe_lost} / ${ppe}</span></div>
+                    </div>
+
+                    <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-blue); border-bottom: 1px solid #334155; padding-bottom: 5px; margin-bottom: 10px;">> METRICS SHIFT</div>
+                    <div class="aar-stats">
+                        <div class="stat-change"><span>PUBLIC ORDER</span><span class="${result.order_change >= 0 ? 'pos' : 'neg'}">${result.order_change > 0 ? '+'+result.order_change : result.order_change}</span></div>
+                        <div class="stat-change"><span>UNIT MORALE</span><span class="${result.morale_change >= 0 ? 'pos' : 'neg'}">${result.morale_change > 0 ? '+'+result.morale_change : result.morale_change}</span></div>
+                        <div class="stat-change"><span>INFECTION RATE</span><span class="${result.infect_change <= 0 ? 'pos' : 'neg'}">${result.infect_change > 0 ? '+'+result.infect_change : result.infect_change}</span></div>
+                    </div>
+                </div>
+            `;
+        }
+
+    </script>
+</body>
+</html>
