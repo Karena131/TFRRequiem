@@ -474,11 +474,12 @@
 
     <script>
         // =========================================================================
-        // 🚨 [매우 중요] DeepSeek API (OpenRouter) 설정 
+        // 🚨 [매우 중요] API 설정 (Gemini 2.5 Flash 무료 버전 연결)
         // =========================================================================
-        const apiKey = "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"; 
-        const aiEndpoint = "https://openrouter.ai/api/v1/chat/completions";
-        const aiModel = "deepseek/deepseek-chat"; 
+        const apiKey = "AIzaSyBnWsSWEDNJxE-JVu4kiIaEgDk8vWMsrAk"; 
+        
+        // Gemini 정식 엔드포인트 및 2.5 Flash 모델명
+        const aiModel = "gemini-2.5-flash"; 
         // =========================================================================
         
         let draggedWin = null, startX, startY, initialX, initialY, zIndexCounter = 100;
@@ -1209,7 +1210,7 @@
 
         function endGame() { document.getElementById('end-screen').style.display = 'flex'; }
 
-        // --- 8. AI Processing (DeepSeek API via OpenRouter) ---
+        // --- 8. AI Processing (Gemini 2.5 Flash API) ---
         async function processWithAI(dispatch) {
             const { id, p, nl, l, ppe, m, f, text, data } = dispatch;
 
@@ -1228,43 +1229,48 @@
 2. 평범/온건 진압 시: 치안 상승폭은 낮으나(+5~10), 사기를 보존함.
 3. 현재 투입된 전투력 점수(${forceScore})가 권장치(${reqScore})보다 많이 낮으면 무조건 작전 실패 처리하고 인명/장비 손실 발생시킬 것.
 
-결과를 반드시 JSON 포맷으로 작성할 것.
-{
-  "report": "[작전 개요] ... \\n[수행 내역] ... \\n[작전 결과] ... 형식으로 건조하고 간결하게 작성된 한국어 군/경 보고서 (감정 묘사 배제)",
-  "casualties": 사망/중상 경찰 수 (투입 인력 ${p} 이하),
-  "nonlethal_lost": 손실된 무기 수 (투입 ${nl} 이하),
-  "lethal_lost": 손실 무기 수 (투입 ${l} 이하),
-  "ppe_lost": 잃어버린 마스크 (투입 ${ppe} 이하),
-  "order_change": 치안 스탯 변화 (-30 ~ 30),
-  "morale_change": 사기 스탯 변화 (-30 ~ 30),
-  "infect_change": 감염 스탯 변화 (-30 ~ 30)
-}`;
+결과를 반드시 JSON 포맷으로 작성할 것. 마크다운(\`\`\`)을 사용하지 마시오.
+보고서(report) 내용은 [작전 개요], [수행 내역], [작전 결과] 3단계 형식으로 건조하고 간결하게 작성된 한국어 군/경 보고서로 작성하시오. (감정 묘사, 소설체 절대 금지. 팩트 위주로 200자 이내 짧게 요약할 것)
+`;
 
             let result;
             try {
-                const response = await fetch(aiEndpoint, {
-                    method: 'POST', headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                // Gemini 2.5 Flash API 호출 및 JSON 구조화 강제
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${apiKey}`, {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        model: aiModel,
-                        messages: [
-                            { role: "system", content: "You are a tactical response AI that outputs valid JSON only." },
-                            { role: "user", content: prompt }
-                        ],
-                        response_format: { type: "json_object" }
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { 
+                            responseMimeType: "application/json", 
+                            responseSchema: {
+                                type: "OBJECT", 
+                                properties: {
+                                    report: { type: "STRING" }, 
+                                    order_change: { type: "INTEGER" }, 
+                                    morale_change: { type: "INTEGER" }, 
+                                    infect_change: { type: "INTEGER" }, 
+                                    casualties: { type: "INTEGER" }, 
+                                    nonlethal_lost: { type: "INTEGER" }, 
+                                    lethal_lost: { type: "INTEGER" }, 
+                                    ppe_lost: { type: "INTEGER" }
+                                }, 
+                                required: ["report", "order_change", "morale_change", "infect_change", "casualties", "nonlethal_lost", "lethal_lost", "ppe_lost"]
+                            }
+                        }
                     })
                 });
+                
                 const rawData = await response.json();
                 if(rawData.error) throw new Error(rawData.error.message);
                 
-                let rawText = rawData.choices[0].message.content;
-                rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-                
-                let match = rawText.match(/\{[\s\S]*\}/);
-                if(match) result = JSON.parse(match[0]);
-                else throw new Error("JSON 파싱 실패");
+                // responseSchema를 사용하면 순수한 JSON 텍스트만 반환되므로 정규식이 필요 없습니다.
+                let rawText = rawData.candidates[0].content.parts[0].text;
+                result = JSON.parse(rawText);
                 
             } catch (e) {
                 console.error("API Call Failed:", e);
+                // API 통신 실패 (할당량 초과 등) 시 무조건 게임이 멈추지 않도록 오프라인 결과 즉시 반환
                 let isViolent = text.includes('발포') || text.includes('사격') || text.includes('강경') || text.includes('사살');
                 
                 if(forceScore < reqScore * 0.8) {
@@ -1288,6 +1294,7 @@
                 }
             }
 
+            // 스탯 업데이트 및 UI 반영 로직 유지
             if(result.order_change > 0 && result.morale_change > 0) lastTurnReaction = 'positive';
             else if(result.order_change > 0 && result.morale_change < 0) lastTurnReaction = 'mixed';
             else lastTurnReaction = 'negative';
